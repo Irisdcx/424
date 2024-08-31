@@ -1,0 +1,98 @@
+---
+title: "final project"
+author: "Peiyuan Gao, Qisen Wang, Han Liu, Chenxi Dong and Kexiao Zhu"
+date: "4/14/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Import Dataset
+
+```{r}
+library(readr)
+library(dplyr)
+sleep <- read_table("Sleep.txt") %>%
+  mutate_at(vars(-percent), as.factor) # convert columns except "Life" to factor
+
+head(sleep, 4)
+```
+
+
+
+**We import the data into R and form a table.**
+
+
+
+
+
+### Visualization
+
+```{r, out.width = 550}
+library(ggplot2)
+ggplot(sleep) +
+  geom_point(aes(x=genre, y=percent, color = person)) +
+  stat_summary(aes(x=genre, y=percent),fun=mean, geom="point", shape=18, size=3, color="black") + 
+  facet_wrap(~ volume) + 
+  ggtitle("Data Visualization") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+**We construct two plots based on different volumes, 2 and 4 units. The x-axis here shows the genre of the music, 1 means pop music, 2 means classical music, 3 means natural sounds. The red rectangle shows the mean of each group.**
+
+
+
+
+```{r}
+sleep_means <- sleep %>% 
+  group_by(genre, volume, person) %>% 
+  summarize(MeanPercent = mean(percent))
+ggplot(sleep_means, aes(x = genre, y = MeanPercent, color = volume, group = volume)) + 
+  geom_line() + 
+  geom_point()+ 
+  facet_wrap(~person)+
+  ggtitle("Interaction Plot")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+
+
+**This plot shows that there are interactions between the two factors, given that the line are not parallel to each other. That means our factorial design is the right strategy to use.**
+
+```{r}
+library(dplyr)
+
+sleep_coded <- sleep %>%
+  mutate(volume = ifelse(volume == '20', 20, 40),
+         genre = ifelse(genre == 'classical', -1, 
+                        ifelse(genre == 'natural', 0, 1)))
+sleep_coded
+
+```
+
+
+```{r}
+AOV <- aov(percent ~ genre * volume + person, data = sleep_coded)
+summary(AOV)
+LR <- lm(percent ~ genre * volume * person, data = sleep_coded)
+anova(LR)
+LR1 <- lm(percent ~ volume, data = sleep_coded)
+summary(LR1)
+```
+
+```{r}
+# CI for volume
+confint(LR1)
+```
+
+
+```{r}
+plot(AOV, which = 1:2)
+sleep$residuals <- resid(AOV)
+ggplot(sleep, aes(x = genre, y = residuals)) + geom_point()
+ggplot(sleep, aes(x = volume, y = residuals)) + geom_point()
+```
